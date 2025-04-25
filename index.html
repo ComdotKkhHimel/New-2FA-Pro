@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Com Dot KKH - Real-time 2FA Code Generator with robust TOTP and base32 decoding.">
+  <title>Com Dot KKH – Real-time 2FA Code Generator</title>
+  <!-- Tailwind CSS v2.2.19 -->
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <!-- Google Fonts Roboto -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Font Awesome 6.5.2 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css">
+  <style>
+    body { font-family: 'Roboto', sans-serif; background: #f9fafb; }
+    .input-mono { font-family: 'Roboto Mono', 'Fira Mono', monospace; }
+    input, button, textarea { outline: none !important; }
+    /* Reduce scrollbars for PDF optimizaton */
+    ::-webkit-scrollbar { width: 6px; background: transparent; }
+    .nofade {transition: none !important;}
+    /* For Timer ring */
+    .countdown-ring { stroke: #3b82f6; opacity: 0.3; }
+    .countdown-ring-value { stroke: #2563eb; transition: stroke-dashoffset 0.5s cubic-bezier(.4,0,.2,1); }
+    .fa-key { color: #2563eb; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen py-8">
+  <div class="max-w-xl mx-auto bg-white shadow-lg rounded-lg p-8 print:p-4">
+    <div class="flex items-center mb-5">
+      <span class="mr-3 text-2xl"><i class="fa-solid fa-key"></i></span>
+      <h1 class="text-2xl md:text-3xl font-bold text-gray-800 flex-1">
+        <span class="text-blue-600">Com Dot KKH</span>
+        <span class="text-gray-800">– Real-time 2FA Code Generator</span>
+      </h1>
+    </div>
+
+    <div>
+      <label for="secret" class="block text-gray-700 font-semibold mb-2">2FA Secret Key</label>
+      <input 
+        id="secret"
+        class="input-mono w-full p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-400 text-lg mb-1 transition"
+        placeholder="Paste your secret key here…"
+        autocomplete="off"
+        spellcheck="false"
+        onkeydown="event.stopPropagation();"
+      />
+      <div class="text-sm text-gray-400 select-none mb-4">
+        Your key stays in your browser. <span class="italic">Never share your secret key.</span>
+      </div>
+    </div>
+
+    <div class="mb-8 flex flex-col items-center">
+      <button id="genBtn"
+        class="mb-4 w-full py-3 bg-blue-600 text-white font-semibold rounded hover:bg-blue-700 shadow transition text-lg"
+        onclick="generateCode()"
+      >
+        <i class="fa-solid fa-bolt mr-2"></i>Generate Code
+      </button>
+      <div class="w-full flex flex-col items-center">
+        <div class="flex items-center space-x-2 w-full mb-2">
+          <h2 class="flex-1 text-lg font-medium text-gray-700 flex items-center">
+            <i class="fa-solid fa-shield-halved mr-2 text-blue-600"></i> Your Current 2FA Code
+          </h2>
+          <div class="flex items-center">
+            <svg width="34" height="34" class="mr-1" viewBox="0 0 34 34">
+              <circle cx="17" cy="17" r="15" fill="none" stroke="#c7d2fe" stroke-width="4" class="countdown-ring"/>
+              <circle id="ringVal"
+                cx="17" cy="17" r="15"
+                fill="none"
+                stroke="#2563eb"
+                stroke-width="4"
+                stroke-dasharray="94.2"
+                stroke-dashoffset="0"
+                transform="rotate(-90,17,17)"
+                class="countdown-ring-value"
+              />
+            </svg>
+            <span id="timer" class="text-sm font-mono text-blue-700"></span>
+          </div>
+        </div>
+        <div class="w-full mb-1">
+          <div 
+            id="otp"
+            class="w-full text-center p-4 border rounded bg-gray-50 font-mono text-3xl font-medium mb-1 transition-all select-all not-italic" 
+            style="letter-spacing: 0.18em; user-select: all;"
+            title="Click to copy"
+            onclick="copyOTP()"
+          >------</div>
+        </div>
+        <div id="otpMsg" class="text-center text-gray-400 text-xs min-h-[1.5em] mb-3"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="text-md text-gray-600 mt-3 mb-1 font-semibold">For Reference:</div>
+      <div class="text-xs bg-gray-100 text-gray-500 rounded px-3 py-2 break-all font-mono input-mono" id="debug-secret"></div>
+    </div>
+  </div>
+
+  <!-- JS: Base32 Decoding & TOTP implementation -->
+  <script>
+    // Helper base32-decoding function (RFC4648, handle padding+spaces)
+    function base32Decode(s) {
+      s = s.replace(/[\s=]+/g, '').toUpperCase();
+      if (!/^[A-Z2-7]*$/.test(s)) throw new Error("Only base32 A-Z2-7 chars allowed.");
+      const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+      let bits = 0, value = 0, bytes = [];
+      for (let i = 0; i < s.length; i++) {
+        const idx = alphabet.indexOf(s[i]);
+        if (idx === -1) throw new Error('Invalid base32 character.');
+        value = (value << 5) | idx;
+        bits += 5;
+        if (bits >= 8) {
+          bytes.push((value >>> (bits - 8)) & 0xFF);
+          bits -= 8;
+        }
+      }
+      return new Uint8Array(bytes);
+    }
+
+    // TOTP generator (SHA-1, 6 digits, 30s period)
+    async function hotp(key, counter, digits=6) {
+      // Convert counter to big-endian 8-byte buffer
+      const buf = new ArrayBuffer(8);
+      new DataView(buf).setUint32(4, counter, false);
+      // Import key
+      const cryptoKey = await window.crypto.subtle.importKey(
+        'raw', key, { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']
+      );
+      const hmac = await window.crypto.subtle.sign('HMAC', cryptoKey, buf);
+      const offset = new DataView(hmac).getUint8(19) & 0xf;
+      const code = (
+        ((new DataView(hmac).getUint32(offset) & 0x7fffffff) % (10 ** digits)) + ''
+      ).padStart(digits, '0');
+      return code;
+    }
+
+    function getCurrentCounter(period = 30) {
+      return Math.floor(Date.now() / 1000 / period);
+    }
+
+    // Main
+    let genBtn = document.getElementById('genBtn');
+    let secretInput = document.getElementById('secret');
+    let otpElem = document.getElementById('otp');
+    let timerElem = document.getElementById('timer');
+    let ringElem = document.getElementById('ringVal');
+    let msgElem = document.getElementById('otpMsg');
+    let debugSecret = document.getElementById('debug-secret');
+    let autoRefreshInterval;
+    let lastSecret = '';
+    let otpError = '';
+
+    function setOTP(val, valid=true) {
+      otpElem.textContent = val;
+      if (!valid) {
+        otpElem.classList.remove("bg-green-100","text-gray-900");
+        otpElem.classList.add("bg-red-50","text-red-600");
+      } else {
+        otpElem.classList.remove("bg-red-50","text-red-600");
+        otpElem.classList.add("bg-green-100","text-gray-900");
+      }
+    }
+    function clearOTP() {
+      setOTP('------', true);
+      msgElem.textContent = '';
+    }
+
+    async function generateCode() {
+      clearTimeout(autoRefreshInterval);
+      let secret = secretInput.value.replace(/[\s\n\r]+/g,'').toUpperCase();
+      debugSecret.textContent = secretInput.value;
+      lastSecret = secretInput.value;
+      // Immediate feedback
+      setOTP('------', true);
+      msgElem.textContent = '';
+      if (!secret) {
+        setOTP('------', true);
+        msgElem.textContent = '';
+        return;
+      }
+      try {
+        let key = base32Decode(secret);
+        let counter = getCurrentCounter();
+        let code = await hotp(key, counter, 6);
+        setOTP(code, true);
+        msgElem.textContent = 'Click code to copy';
+        otpError = '';
+        // Start timer
+        runTimer(secretInput.value, key);
+      } catch (e) {
+        setOTP('Invalid!', false);
+        msgElem.textContent = e.message;
+        otpError = e.message;
+        updateTimerUI(); // But show timer
+      }
+    }
+
+    function updateTimerUI() {
+      // Always show seconds remaining & progress ring (so timer animation is stable)
+      const period = 30;
+      let now = Math.floor(Date.now() / 1000);
+      let remain = period - (now % period);
+      let show = remain.toString().padStart(2, '0')+"s";
+      timerElem.textContent = show;
+      // Progress ring (full circle is stroke-dasharray=94.2)
+      let dash = 94.2 - (94.2 * remain) / period;
+      ringElem.setAttribute('stroke-dashoffset', dash.toString());
+    }
+
+    function runTimer(lastSecretInput, keyBuf) {
+      function tick() {
+        updateTimerUI();
+        const period = 30;
+        let now = Math.floor(Date.now() / 1000);
+        let remain = period - (now % period);
+        if (remain === period) {
+          // New period - recalc code if still same secret
+          if (!otpError && secretInput.value.replace(/[\s\n\r]+/g,'').toUpperCase() === lastSecretInput.replace(/[\s\n\r]+/g,'').toUpperCase()) {
+            // Only continue if input hasn't changed
+            hotp(keyBuf, getCurrentCounter(), 6).then(code => {
+              setOTP(code, true);
+              msgElem.textContent = 'Click code to copy';
+            }).catch(err => { setOTP('Invalid!', false); msgElem.textContent = err.message; });
+          }
+        }
+        autoRefreshInterval = setTimeout(tick, 1000);
+      }
+      tick();
+    }
+
+    // Responsive: auto-run generateCode on secret change, but debounce for typing
+    let debounceTimer = null;
+    secretInput.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        generateCode();
+      }, 400);
+    });
+    // Enter key triggers
+    secretInput.addEventListener('keydown', e => { if (e.key === "Enter") generateCode(); });
+
+    function copyOTP() {
+      let code = otpElem.textContent.trim();
+      if (code && code !== '------' && code !== 'Invalid!') {
+        try {
+          navigator.clipboard.writeText(code);
+          msgElem.textContent = "Copied to clipboard!";
+        } catch(e) {
+          msgElem.textContent = "Copy failed";
+        }
+      }
+    }
+
+    // Autofill debug secret
+    window.onload = () => {
+      debugSecret.textContent = secretInput.value;
+      generateCode();
+    };
+  </script>
+</body>
+</html>
+
