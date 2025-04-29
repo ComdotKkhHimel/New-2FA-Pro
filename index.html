@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ComDotKKH - 2FA Generator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --matrix-green: #00ff41;
+            --dark-green: #003b00;
+            --darker-green: #001a00;
+            --glow: 0 0 10px;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            background-color: black;
+            background-image: 
+                radial-gradient(circle at center, var(--dark-green) 0%, black 70%);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: var(--matrix-green);
+            overflow-x: hidden;
+        }
+        
+        .terminal {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            background: rgba(0, 10, 0, 0.8);
+            border-radius: 0;
+            border: 1px solid var(--matrix-green);
+            box-shadow: 0 0 20px var(--matrix-green);
+            padding: 30px;
+            overflow: hidden;
+            z-index: 1;
+        }
+        
+        .terminal::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: var(--matrix-green);
+            animation: scanline 3s linear infinite;
+            box-shadow: var(--glow) var(--matrix-green);
+        }
+        
+        @keyframes scanline {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--matrix-green);
+        }
+        
+        .logo {
+            font-weight: normal;
+            font-size: 28px;
+            letter-spacing: 2px;
+            color: var(--matrix-green);
+            text-shadow: var(--glow) var(--matrix-green);
+        }
+        
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--matrix-green);
+            text-shadow: var(--glow) var(--matrix-green);
+        }
+        
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--matrix-green);
+            box-shadow: var(--glow) var(--matrix-green);
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .subheader {
+            font-size: 14px;
+            margin-bottom: 30px;
+            letter-spacing: 1px;
+        }
+        
+        .input-group {
+            margin-bottom: 25px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 12px;
+            font-size: 15px;
+            letter-spacing: 1px;
+        }
+        
+        .input-field {
+            position: relative;
+        }
+        
+        input[type="text"] {
+            width: 100%;
+            padding: 15px 20px;
+            background: rgba(0, 20, 0, 0.5);
+            border: 1px solid var(--matrix-green);
+            border-radius: 0;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 16px;
+            color: var(--matrix-green);
+            transition: all 0.3s;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            box-shadow: 0 0 10px var(--matrix-green);
+        }
+        
+        .input-field::after {
+            content: '>';
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            animation: blink 1s step-end infinite;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 15px;
+            border: 1px solid var(--matrix-green);
+            border-radius: 0;
+            font-family: 'Share Tech Mono', monospace;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: transparent;
+            color: var(--matrix-green);
+            text-shadow: var(--glow) var(--matrix-green);
+        }
+        
+        button:hover {
+            background: rgba(0, 255, 65, 0.1);
+            box-shadow: 0 0 15px var(--matrix-green);
+        }
+        
+        .code-display-container {
+            position: relative;
+            margin: 30px 0;
+        }
+        
+        .code-display {
+            font-size: 42px;
+            font-weight: bold;
+            letter-spacing: 8px;
+            color: var(--matrix-green);
+            margin: 0 auto;
+            padding: 25px;
+            background: rgba(0, 20, 0, 0.5);
+            border: 1px solid var(--matrix-green);
+            display: inline-block;
+            min-width: 260px;
+            transition: all 0.3s;
+            text-shadow: var(--glow) var(--matrix-green);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .code-display::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(0, 255, 65, 0.1),
+                transparent
+            );
+            transform: translateX(-100%);
+            transition: transform 0.6s;
+        }
+        
+        .code-display:hover::before {
+            transform: translateX(100%);
+        }
+        
+        .copy-btn {
+            display: block;
+            margin: 0 auto;
+            padding: 10px 20px;
+            font-size: 14px;
+            animation: none;
+        }
+        
+        .copy-btn.copied {
+            animation: flash 0.5s;
+            background: rgba(0, 255, 65, 0.2);
+        }
+        
+        .timer-container {
+            height: 2px;
+            background-color: rgba(0, 255, 65, 0.2);
+            margin: 25px 0 15px;
+            overflow: hidden;
+            display: none;
+        }
+        
+        .timer-bar {
+            height: 100%;
+            background: var(--matrix-green);
+            width: 100%;
+            transition: width 1s linear;
+            box-shadow: var(--glow) var(--matrix-green);
+        }
+        
+        .time-left {
+            font-size: 12px;
+            margin-top: 5px;
+            display: none;
+            letter-spacing: 1px;
+        }
+        
+        .instructions {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(0, 20, 0, 0.5);
+            border-left: 3px solid var(--matrix-green);
+            text-align: left;
+            font-size: 14px;
+        }
+        
+        .instructions h3 {
+            margin-bottom: 12px;
+            font-size: 16px;
+            letter-spacing: 1px;
+        }
+        
+        .instructions ol {
+            padding-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+        
+        .error {
+            margin: 15px 0;
+            min-height: 20px;
+            text-align: center;
+            padding: 10px;
+            display: none;
+            animation: shake 0.5s;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        
+        @keyframes flash {
+            0% { background: rgba(0, 255, 65, 0); }
+            50% { background: rgba(0, 255, 65, 0.3); }
+            100% { background: rgba(0, 255, 65, 0); }
+        }
+        
+        .matrix-rain {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+        
+        .matrix-digit {
+            position: absolute;
+            color: var(--matrix-green);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 14px;
+            animation: matrixFall linear infinite;
+            text-shadow: var(--glow) var(--matrix-green);
+            opacity: 0.8;
+        }
+        
+        @keyframes matrixFall {
+            to { transform: translateY(100vh); }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @media (max-width: 600px) {
+            .terminal {
+                padding: 20px;
+            }
+            
+            .logo {
+                font-size: 24px;
+            }
+            
+            .code-display {
+                font-size: 32px;
+                padding: 20px;
+                min-width: 220px;
+                letter-spacing: 6px;
+            }
+            
+            button {
+                padding: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="matrix-rain" id="matrix-rain"></div>
+    
+    <div class="terminal">
+        <div class="header">
+            <div class="logo">ComDotKKH</div>
+            <div class="status">
+                <div class="status-indicator"></div>
+                <span>SECURE CONNECTION</span>
+            </div>
+        </div>
+        
+        <div class="subheader">TWO-FACTOR AUTHENTICATION GENERATOR</div>
+        
+        <div class="input-group">
+            <label>ENTER SECRET KEY:</label>
+            <div class="input-field">
+                <input type="text" id="secret-key" placeholder="JBSWY3DPEHPK3PXP">
+            </div>
+        </div>
+        
+        <div class="button-group">
+            <button id="clear-btn">
+                CLEAR
+            </button>
+        </div>
+        
+        <div id="error-message" class="error"></div>
+        
+        <div class="code-display-container">
+            <div id="code-display" class="code-display">------</div>
+            <button id="copy-btn" class="copy-btn">COPY CODE</button>
+        </div>
+        
+        <div class="timer-container" id="timer-container">
+            <div id="timer-bar" class="timer-bar"></div>
+        </div>
+        <div id="time-left" class="time-left"></div>
+        
+        <div class="instructions">
+            <h3>USAGE INSTRUCTIONS:</h3>
+            <ol>
+                <li>Input your secret key in the field above</li>
+                <li>Authentication code will generate automatically</li>
+                <li>Click "COPY CODE" button to copy to clipboard</li>
+                <li>Code refreshes every 30 seconds</li>
+                <li>Keep your secret key secure at all times</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        // Create matrix rain effect
+        function createMatrixRain() {
+            const container = document.getElementById('matrix-rain');
+            const digitCount = Math.floor(window.innerWidth / 15);
+            
+            for (let i = 0; i < digitCount; i++) {
+                const digit = document.createElement('div');
+                digit.classList.add('matrix-digit');
+                digit.textContent = Math.random() > 0.5 ? '1' : '0';
+                digit.style.left = `${Math.random() * 100}%`;
+                digit.style.top = `${Math.random() * -100}px`;
+                digit.style.animationDuration = `${Math.random() * 5 + 3}s`;
+                digit.style.animationDelay = `${Math.random() * 5}s`;
+                
+                container.appendChild(digit);
+            }
+        }
+        
+        // Base32 characters and lookup table
+        const base32chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+        const base32lookup = {};
+        for (let i = 0; i < base32chars.length; i++) {
+            base32lookup[base32chars[i]] = i;
+        }
+        
+        let timerInterval;
+        let currentSecret = '';
+        
+        // Proper Base32 decoding function
+        function base32Decode(encoded) {
+            // Remove padding and whitespace, convert to uppercase
+            encoded = encoded.replace(/=+$/, '').replace(/\s+/g, '').toUpperCase();
+            
+            // Validate the input contains only valid Base32 characters
+            if (!/^[A-Z2-7]+$/.test(encoded)) {
+                throw new Error('Invalid Base32 characters in secret key');
+            }
+            
+            let buffer = 0;
+            let bufferLength = 0;
+            let result = [];
+            
+            for (let i = 0; i < encoded.length; i++) {
+                const char = encoded[i];
+                const value = base32lookup[char];
+                
+                if (value === undefined) {
+                    throw new Error(`Invalid Base32 character: ${char}`);
+                }
+                
+                buffer = (buffer << 5) | value;
+                bufferLength += 5;
+                
+                if (bufferLength >= 8) {
+                    bufferLength -= 8;
+                    result.push((buffer >> bufferLength) & 0xff);
+                }
+            }
+            
+            // Handle any remaining bits
+            if (bufferLength > 0) {
+                result.push((buffer << (8 - bufferLength)) & 0xff);
+            }
+            
+            return new Uint8Array(result);
+        }
+        
+        // Proper TOTP implementation
+        async function generateTOTP(secret) {
+            try {
+                // Clean the secret key
+                const cleanedSecret = secret.trim().replace(/\s+/g, '').toUpperCase();
+                
+                // Validate the secret key
+                if (!cleanedSecret) {
+                    throw new Error('Secret key is empty');
+                }
+                if (!/^[A-Z2-7]+$/.test(cleanedSecret)) {
+                    throw new Error('Invalid Base32 characters in secret key');
+                }
+                
+                // Decode the Base32 secret key
+                const keyBytes = base32Decode(cleanedSecret);
+                
+                // Get current counter based on 30-second intervals
+                const epoch = Math.floor(Date.now() / 1000);
+                let counter = Math.floor(epoch / 30);
+                
+                // Prepare counter (8 bytes big-endian)
+                const counterBytes = new Uint8Array(8);
+                for (let i = 7; i >= 0; i--) {
+                    counterBytes[i] = counter & 0xff;
+                    counter = counter >>> 8;
+                }
+                
+                // Import key
+                const key = await window.crypto.subtle.importKey(
+                    'raw',
+                    keyBytes,
+                    { name: 'HMAC', hash: 'SHA-1' },
+                    false,
+                    ['sign']
+                );
+                
+                // Sign the counter
+                const hmac = await window.crypto.subtle.sign('HMAC', key, counterBytes);
+                const hmacBytes = new Uint8Array(hmac);
+                
+                // Dynamic truncation
+                const offset = hmacBytes[hmacBytes.length - 1] & 0xf;
+                const binCode = (
+                    ((hmacBytes[offset] & 0x7f) << 24) |
+                    ((hmacBytes[offset + 1] & 0xff) << 16) |
+                    ((hmacBytes[offset + 2] & 0xff) << 8) |
+                    (hmacBytes[offset + 3] & 0xff)
+                );
+                
+                // Get 6-digit code
+                const otp = binCode % 1000000;
+                return otp.toString().padStart(6, '0');
+            } catch (error) {
+                console.error('Error generating TOTP:', error);
+                throw new Error('Invalid key format or cryptographic operation failed');
+            }
+        }
+        
+        // Update the timer and code display
+        function updateDisplay() {
+            const now = Date.now();
+            const epoch = Math.floor(now / 1000);
+            const timeLeft = 30 - (epoch % 30);
+            const percentage = (timeLeft / 30) * 100;
+            
+            // Update timer display
+            document.getElementById('timer-bar').style.width = `${percentage}%`;
+            document.getElementById('time-left').textContent = `REFRESH IN: ${timeLeft}s`;
+            
+            // Add pulse animation when time is running low
+            if (timeLeft < 10 && timeLeft % 2 === 0) {
+                document.getElementById('time-left').style.animation = 'pulse 0.5s';
+                setTimeout(() => {
+                    document.getElementById('time-left').style.animation = '';
+                }, 500);
+            }
+            
+            // Generate new code if we've crossed a 30-second boundary
+            if (timeLeft === 30) {
+                generateAndDisplayCode(currentSecret);
+                
+                // Add transition effect when code changes
+                const codeDisplay = document.getElementById('code-display');
+                codeDisplay.style.animation = 'none';
+                void codeDisplay.offsetWidth; // Trigger reflow
+                codeDisplay.style.animation = 'fadeIn 0.5s';
+            }
+        }
+        
+        // Start the timer and code generation
+        function startTimerAndGeneration(secret) {
+            // Store the current secret
+            currentSecret = secret;
+            
+            // Show the timer and time left with animation
+            const timerContainer = document.getElementById('timer-container');
+            const timeLeft = document.getElementById('time-left');
+            
+            timerContainer.style.display = 'block';
+            timeLeft.style.display = 'block';
+            document.getElementById('error-message').style.display = 'none';
+            
+            // Generate initial code
+            generateAndDisplayCode(secret);
+            
+            // Update every second
+            clearInterval(timerInterval);
+            timerInterval = setInterval(updateDisplay, 1000);
+        }
+        
+        // Stop the timer
+        function stopTimer() {
+            clearInterval(timerInterval);
+            document.getElementById('timer-container').style.display = 'none';
+            document.getElementById('time-left').style.display = 'none';
+            document.getElementById('code-display').textContent = '------';
+        }
+        
+        // Generate and display code
+        async function generateAndDisplayCode(secret) {
+            try {
+                const code = await generateTOTP(secret);
+                document.getElementById('code-display').textContent = code;
+                document.getElementById('error-message').style.display = 'none';
+            } catch (error) {
+                console.error(error);
+                document.getElementById('error-message').textContent = 'ERROR: INVALID KEY FORMAT - Must be Base32 (A-Z, 2-7)';
+                document.getElementById('error-message').style.display = 'block';
+                stopTimer();
+            }
+        }
+        
+        // Copy code to clipboard
+        async function copyCode() {
+            const codeDisplay = document.getElementById('code-display');
+            const copyBtn = document.getElementById('copy-btn');
+            
+            if (codeDisplay.textContent === '------') {
+                return;
+            }
+
+            try {
+                // Try modern clipboard API first
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(codeDisplay.textContent);
+                    copyBtn.textContent = 'COPIED!';
+                    copyBtn.classList.add('copied');
+                    setTimeout(() => {
+                        copyBtn.textContent = 'COPY CODE';
+                        copyBtn.classList.remove('copied');
+                    }, 2000);
+                    return;
+                }
+                
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = codeDisplay.textContent;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.select();
+                
+                try {
+                    const successful = document.execCommand('copy');
+                    if (!successful) throw new Error('Copy command failed');
+                    copyBtn.textContent = 'COPIED!';
+                    copyBtn.classList.add('copied');
+                    setTimeout(() => {
+                        copyBtn.textContent = 'COPY CODE';
+                        copyBtn.classList.remove('copied');
+                    }, 2000);
+                } finally {
+                    document.body.removeChild(textarea);
+                }
+            } catch (err) {
+                console.error('Copy failed:', err);
+                copyBtn.textContent = 'COPY FAILED';
+                setTimeout(() => {
+                    copyBtn.textContent = 'COPY CODE';
+                }, 2000);
+            }
+        }
+        
+        // DOM elements
+        const secretKeyInput = document.getElementById('secret-key');
+        const clearBtn = document.getElementById('clear-btn');
+        const copyBtn = document.getElementById('copy-btn');
+        const errorMessage = document.getElementById('error-message');
+        
+        // Generate code whenever secret key changes
+        secretKeyInput.addEventListener('input', function() {
+            const secret = secretKeyInput.value;
+            
+            if (!secret.trim()) {
+                stopTimer();
+                errorMessage.style.display = 'none';
+                return;
+            }
+            
+            // Start new timer and generation
+            startTimerAndGeneration(secret);
+        });
+        
+        // Clear button handler
+        clearBtn.addEventListener('click', function() {
+            secretKeyInput.value = '';
+            stopTimer();
+            errorMessage.style.display = 'none';
+        });
+        
+        // Copy button handler
+        copyBtn.addEventListener('click', copyCode);
+        
+        // Initialize with timer hidden
+        stopTimer();
+        
+        // Create matrix rain on load
+        window.addEventListener('load', createMatrixRain);
+    </script>
+</body>
+</html>
